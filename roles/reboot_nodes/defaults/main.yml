@@ -1,0 +1,3 @@
+daemonset_name: machine-config-daemon
+delay: 1
+

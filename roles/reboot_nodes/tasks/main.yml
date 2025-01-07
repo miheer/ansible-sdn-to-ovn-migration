@@ -1,0 +1,14 @@
+---
+- name: Fetch and reboot master nodes
+  reboot_nodes:
+    node_type: "master"
+    daemonset_name: "machine-config-daemon"
+    namespace: "openshift-machine-config-operator"
+    delay: 1
+
+- name: Fetch and reboot worker nodes
+  reboot_nodes:
+    node_type: "worker"
+    daemonset_name: "machine-config-daemon"
+    namespace: "openshift-machine-config-operator"
+    delay: 1

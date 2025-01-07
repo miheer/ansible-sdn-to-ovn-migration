@@ -1,0 +1,43 @@
+---
+- name: Patch Network.operator.openshift.io and wait for migration field to clear
+  clean_migration_field:
+    timeout: "{{ clean_migration_timeout }}"
+
+- name: Change network type to trigger MCO update
+  change_network_type:
+    network_type: "{{ target_network_type }}"
+
+- name: Wait until MCO starts applying new machine config to nodes
+  wait_for_mco:
+    timeout: "{{ mco_timeout }}"
+  register: mco_status
+
+- name: Print MCO status message
+  debug:
+    msg: "{{ mco_status.msg }}"
+
+- name: Wait for MCO to finish its work
+  wait_for_mco_completion:
+    timeout: "{{ mcp_completion_timeout }}"
+
+- name: Verify machine configuration status on nodes
+  verify_machine_config:
+    timeout: "{{ verify_machine_config_timeout }}"
+
+- name: Trigger OVN-Kubernetes deployment
+  trigger_ovn_kubernetes:
+    network_type: "{{ ovn_network_type }}"
+    timeout: "{{ ovn_co_timeout }}"
+
+- name: Wait until the Network Cluster Operator is in PROGRESSING=True state
+  wait_for_network_co:
+    timeout: "{{ ovn_co_timeout }}"
+  register: network_co_status
+
+- name: Display the status of the Network Cluster Operator
+  debug:
+    msg: "{{ network_co_status.msg }}"
+
+- name: Wait for Multus pods to restart
+  wait_multus_restart:
+    timeout: "{{ ovn_multus_timeout }}"
