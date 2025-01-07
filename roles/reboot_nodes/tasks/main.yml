@@ -1,0 +1,7 @@
+- name: Reboot all nodes and verify readiness
+  reboot_nodes:
+    daemonset_name: "machine-config-daemon"
+    delay: 1  # Time to wait before starting each reboot
+    timeout: 1800  # Total timeout for node readiness
+    max_retries: 5
+    retry_interval: 3
