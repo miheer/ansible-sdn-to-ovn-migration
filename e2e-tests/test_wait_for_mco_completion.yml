@@ -1,0 +1,41 @@
+- name: End-to-End Test for wait_for_mco_completion
+  hosts: localhost
+  gather_facts: false
+  tasks:
+
+#    - name: Get current MCP state before update
+#      command: oc get mcp -o json
+#      register: mcp_before_update
+#      changed_when: false
+
+#    - name: Simulate a change in the worker MachineConfigPool (Trigger MCO update)
+#      command: >
+#        oc patch mcp worker --type=merge --patch '{"spec": {"paused": false}}'
+#      changed_when: true
+#      register: mcp_patch_result
+
+#    - name: Print MCP patch result
+#      debug:
+#        msg: "{{ mcp_patch_result.stdout }}"
+
+    - name: Wait for MCO to complete the update
+      wait_for_mco_completion:
+        timeout: 1800  # 30 minutes
+      register: mco_status
+
+    - name: Print MCO completion status
+      debug:
+        msg: "{{ mco_status.msg }}"
+
+    - name: Verify that MCP is updated
+      command: oc get mcp -o json
+      register: mcp_after_update
+      changed_when: false
+
+    - name: Assert MCP is updated and not degraded
+      assert:
+        that:
+          - "{{ (mcp_after_update.stdout | from_json).items | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'search', 'UPDATED') | list | length > 0 }}"
+          - "{{ (mcp_after_update.stdout | from_json).items | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'search', 'DEGRADED') | list | length == 0 }}"
+        fail_msg: "MCP did not update successfully or is in a degraded state!"
+        success_msg: "MCP updated successfully and is healthy!"

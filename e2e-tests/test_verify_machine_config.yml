@@ -1,0 +1,55 @@
+- name: End-to-End Test for verify_machine_config
+  hosts: localhost
+  gather_facts: false
+  vars:
+    verify_machine_config_timeout: 600  # 10 minutes
+    network_type: "OVNKubernetes"
+  tasks:
+
+#    - name: Get current MCP state before testing
+#      command: oc get mcp -o json
+#      register: mcp_before_test
+#      changed_when: false
+
+#    - name: Trigger network configuration update (Simulating a real scenario)
+#      command: >
+#        oc patch Network.operator.openshift.io cluster --type=merge --patch '{"spec": {"defaultNetwork": {"type": "OVNKubernetes"}}}'
+#      changed_when: true
+#      register: network_patch_result
+
+#    - name: Print network patch result
+#      debug:
+#        msg: "{{ network_patch_result.stdout }}"
+
+#    - name: Wait for MCO to finish applying changes
+#      wait_for_mco_completion:
+#        timeout: 1800  # 30 minutes
+#      register: mco_status
+
+#    - name: Print MCO completion status
+#      debug:
+#        msg: "{{ mco_status.msg }}"
+
+    - name: Verify machine configuration consistency on nodes
+      verify_machine_config:
+        timeout: "{{ verify_machine_config_timeout }}"
+        network_type: "{{ network_type }}"
+      register: verify_result
+      failed_when: verify_result.failed
+
+    - name: Print verification results
+      debug:
+        msg: "{{ verify_result.msg }}"
+
+    - name: Ensure all nodes have updated and are not degraded
+      command: oc get mcp -o json
+      register: mcp_after_test
+      changed_when: false
+
+    - name: Assert MCP is updated and not degraded
+      assert:
+        that:
+          - "{{ (mcp_after_test.stdout | from_json).items | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'search', 'UPDATED') | list | length > 0 }}"
+          - "{{ (mcp_after_test.stdout | from_json).items | selectattr('status.conditions', 'defined') | selectattr('status.conditions', 'search', 'DEGRADED') | list | length == 0 }}"
+        fail_msg: "MCP did not update successfully or is in a degraded state!"
+        success_msg: "MCP updated successfully and is healthy!"
